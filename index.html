@@ -117,6 +117,8 @@ th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:500;padding:6
 td{padding:9px 8px;border-bottom:1px solid var(--line)}
 td.n,th.n{text-align:right}
 .tag-miss{color:var(--warn);font-size:12px}
+.filrow{display:flex;gap:6px}.filrow input{flex:1 1 auto;min-width:0}.filrow .btn{flex:0 0 auto}
+#filInfo.on{color:var(--ok)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chip{border:1px solid var(--line);background:none;border-radius:6px;padding:6px 10px;font-size:12.5px;cursor:pointer;color:var(--muted);min-height:34px;display:flex;gap:6px;align-items:center}
 .chip b{color:var(--fg);font-weight:600}
@@ -231,14 +233,12 @@ td.n,th.n{text-align:right}
         <div class="card-h"><h3><span id="calcTitle">Calculadora de preço</span></h3><button class="mini" id="calcReset" type="button">Limpar</button></div>
         <form class="grid" id="fCalc" autocomplete="off">
           <div class="f s6"><label for="pNome">Nome do produto</label><input id="pNome" type="text" maxlength="60" placeholder="Ex.: Presépio" required></div>
-          <div class="f s3"><label for="pFil">Filamento (R$/kg)</label><input id="pFil" type="number" min="0" step="0.01" value="100"></div>
-          <div class="f s3"><label for="pPeso">Peso da peça (g)</label><input id="pPeso" type="number" min="0" step="1" value="0"></div>
-          <div class="f s2"><label for="pHoras">Tempo (h)</label><input id="pHoras" type="number" min="0" step="0.1" value="0"></div>
-          <div class="f s2"><label for="pWatts">Consumo (W)</label><input id="pWatts" type="number" min="0" step="1" value="150"></div>
-          <div class="f s2"><label for="pKwh">Energia (R$/kWh)</label><input id="pKwh" type="number" min="0" step="0.01" value="0.95"></div>
-          <div class="f s2"><label for="pDesg">Desgaste (R$/h)</label><input id="pDesg" type="number" min="0" step="0.01" value="0.50"></div>
-          <div class="f s2"><label for="pExtra">Embalagem e extras (R$)</label><input id="pExtra" type="number" min="0" step="0.01" value="2"></div>
-          <div class="f s2"><label for="pFalha">Margem de falha (%)</label><input id="pFalha" type="number" min="0" step="1" value="10"></div>
+          <div class="f s3"><label for="pFil">Filamento (R$/kg)</label>
+            <div class="filrow"><input id="pFil" type="number" min="0" step="0.01" value="100"><button class="btn g" type="button" id="fixFil">Fixar</button></div>
+            <span class="hint" id="filInfo">Fixe o preço do kg para não precisar digitar de novo.</span></div>
+          <div class="f s3"><label for="pPeso">Peso da peça (g)</label><input id="pPeso" type="number" min="0" step="1" value="0"><span class="hint">&nbsp;</span></div>
+          <div class="f s3"><label for="pExtra">Embalagem e extras (R$)</label><input id="pExtra" type="number" min="0" step="0.01" value="2"></div>
+          <div class="f s3"><label for="pFalha">Margem de falha (%)</label><input id="pFalha" type="number" min="0" step="1" value="10"></div>
           <div class="f s3"><label for="pMargem">Lucro desejado (%)</label><input id="pMargem" type="number" min="0" step="1" value="100"></div>
           <div class="f s3"><label for="pTaxa">Taxa de venda (%)</label><input id="pTaxa" type="number" min="0" max="90" step="0.1" value="0"></div>
           <div class="f s6"><label for="pPreco">Preço de venda que vou cobrar (R$)</label><input id="pPreco" type="number" min="0" step="0.01" placeholder="Deixe vazio para usar o sugerido"></div>
@@ -311,8 +311,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 
 /* ---------- dados ---------- */
-const COLS=['produtos','vendas','contas','pedidos'];
-const store={produtos:[],vendas:[],contas:[],pedidos:[]};
+const COLS=['produtos','vendas','contas','pedidos','config'];
+const store={produtos:[],vendas:[],contas:[],pedidos:[],config:[]};
 let db=null, local=false;
 function loadLocal(){try{const raw=localStorage.getItem('atto-gestao');if(raw){const o=JSON.parse(raw);COLS.forEach(c=>store[c]=o[c]||[])}}catch(e){}}
 function saveLocal(){try{localStorage.setItem('atto-gestao',JSON.stringify(store))}catch(e){}}
@@ -321,6 +321,10 @@ async function add(col,obj){
   obj.criadoEm=new Date().toISOString();
   if(db){try{const ref=await db.collection(col).add(obj);return ref&&ref.id}catch(e){fail(e)}}
   else{const id=uid();store[col].push({id,...obj});saveLocal();render();return id}
+}
+async function setDoc(col,id,obj){
+  if(db){try{await db.collection(col).doc(id).set(obj)}catch(e){fail(e)}}
+  else{store[col]=store[col].filter(x=>x.id!==id);store[col].push({id,...obj});saveLocal();render()}
 }
 async function upd(col,id,patch){
   if(db){try{await db.collection(col).doc(id).update(patch)}catch(e){fail(e)}}
@@ -407,26 +411,36 @@ $('#fConta').addEventListener('submit',async e=>{e.preventDefault();
 });
 
 /* ---------- calculadora ---------- */
-const C=['pFil','pPeso','pHoras','pWatts','pKwh','pDesg','pExtra','pFalha','pMargem','pTaxa'];
+const C=['pFil','pPeso','pExtra','pFalha','pMargem','pTaxa'];
 function calc(){
   const v={};C.forEach(k=>v[k]=num($('#'+k).value));
-  const mat=v.pFil*v.pPeso/1000, ene=v.pWatts/1000*v.pHoras*v.pKwh, des=v.pDesg*v.pHoras;
-  const base=mat+ene+des, falha=base*v.pFalha/100, custo=base+falha+v.pExtra;
+  const mat=v.pFil*v.pPeso/1000;
+  const falha=mat*v.pFalha/100, custo=mat+falha+v.pExtra;
   const taxa=Math.min(v.pTaxa,90)/100;
   const sug=custo*(1+v.pMargem/100)/(1-taxa);
-  return {mat,ene,des,falha,extra:v.pExtra,custo,sug,taxa};
+  return {mat,falha,extra:v.pExtra,custo,sug,taxa};
 }
 function drawCalc(){
   const r=calc();
-  $('#bd').innerHTML=`<div><span>Filamento</span><span>${brl(r.mat)}</span></div><div><span>Energia</span><span>${brl(r.ene)}</span></div><div><span>Desgaste da impressora</span><span>${brl(r.des)}</span></div><div><span>Margem de falha</span><span>${brl(r.falha)}</span></div><div><span>Embalagem e extras</span><span>${brl(r.extra)}</span></div><div class="tot"><span>Custo total</span><span>${brl(r.custo)}</span></div>`;
+  $('#bd').innerHTML=`<div><span>Filamento</span><span>${brl(r.mat)}</span></div><div><span>Margem de falha</span><span>${brl(r.falha)}</span></div><div><span>Embalagem e extras</span><span>${brl(r.extra)}</span></div><div class="tot"><span>Custo total</span><span>${brl(r.custo)}</span></div>`;
   $('#sug').textContent=brl(r.sug);
   const pr=$('#pPreco').value===''?r.sug:num($('#pPreco').value);
   const lucro=pr*(1-r.taxa)-r.custo;
   $('#sugInfo').textContent=`Com o preço de ${brl(pr)}, você lucra ${brl(lucro)} por peça`+(pr>0?` (${Math.round(lucro/pr*100)}% do preço).`:'.');
 }
 C.concat(['pPreco']).forEach(k=>$('#'+k).addEventListener('input',drawCalc));
+const filFixo=()=>{const c=store.config.find(x=>x.id==='geral');return c&&c.filamentoKg>0?c.filamentoKg:null};
+let filApplied=null;
+function applyFil(force){
+  const f=filFixo(),info=$('#filInfo');
+  if(f){info.textContent='Preço fixo: '+brl(f)+' por kg';info.classList.add('on');$('#fixFil').textContent=num($('#pFil').value)===f?'Fixado':'Fixar'}
+  else{info.textContent='Fixe o preço do kg para não precisar digitar de novo.';info.classList.remove('on');$('#fixFil').textContent='Fixar'}
+  if(f&&(force||f!==filApplied)&&document.activeElement!==$('#pFil')){$('#pFil').value=f;filApplied=f;drawCalc();$('#fixFil').textContent='Fixado'}
+}
+$('#pFil').addEventListener('input',()=>{const f=filFixo();$('#fixFil').textContent=f&&num($('#pFil').value)===f?'Fixado':'Fixar'});
+$('#fixFil').onclick=()=>{const v=Math.round(num($('#pFil').value)*100)/100;if(!(v>0)){$('#pFil').focus();return}setDoc('config','geral',{filamentoKg:v})};
 $('#useSug').onclick=()=>{$('#pPreco').value=calc().sug.toFixed(2);drawCalc()};
-function resetCalc(){$('#fCalc').reset();editId=null;$('#calcTitle').textContent='Calculadora de preço';$('#pSave').textContent='Salvar produto';$('#pCancel').hidden=true;drawCalc()}
+function resetCalc(){$('#fCalc').reset();editId=null;applyFil(true);$('#calcTitle').textContent='Calculadora de preço';$('#pSave').textContent='Salvar produto';$('#pCancel').hidden=true;drawCalc()}
 $('#calcReset').onclick=resetCalc;$('#newProd').onclick=()=>{resetCalc();go('calc');$('#pNome').focus()};$('#pCancel').onclick=resetCalc;
 $('#fCalc').addEventListener('submit',e=>{e.preventDefault();
   const r=calc(),params={};C.forEach(k=>params[k]=num($('#'+k).value));
@@ -438,7 +452,7 @@ $('#fCalc').addEventListener('submit',e=>{e.preventDefault();
 function editProd(id){
   const p=prodById(id);if(!p)return;editId=id;
   $('#pNome').value=p.nome;
-  if(p.params)C.forEach(k=>{if(p.params[k]!=null)$('#'+k).value=p.params[k]});
+  if(p.params)C.forEach(k=>{if(p.params[k]!=null&&!(k==='pFil'&&filFixo()))$('#'+k).value=p.params[k]});
   $('#pPreco').value=p.preco!=null?p.preco:'';
   $('#calcTitle').textContent='Editando: '+p.nome;$('#pSave').textContent='Salvar alterações';$('#pCancel').hidden=false;
   go('calc');drawCalc();$('#pNome').focus();
@@ -610,7 +624,7 @@ function render(){
       <div class="prog"><i style="width:${Math.round(a.pagas/a.n*100)}%"></i></div></div>
     <div class="r"><span class="m">falta</span><span class="amt num">${brl(a.rest)}</span><button class="mini" data-del-g="${esc(a.g[0].grupo)}">Excluir</button></div></div>`).join('');
 
-  renderPedidos();
+  renderPedidos();applyFil(false);
   const sold={};store.vendas.forEach(v=>sold[v.produtoId]=(sold[v.produtoId]||0)+v.qtd);
   const ps=store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
   $('#tProd').innerHTML=ps.length?ps.map(p=>{
