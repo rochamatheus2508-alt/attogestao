@@ -121,6 +121,17 @@ td.n,th.n{text-align:right}
 .tag-miss{color:var(--warn);font-size:12px}
 #gate{position:fixed;inset:0;z-index:50;background:var(--night);display:flex;align-items:center;justify-content:center;padding:16px}
 .gbox{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.photo-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.ph{width:96px;height:96px;border-radius:8px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;overflow:hidden;flex:0 0 auto;background:var(--night)}
+.ph img{width:100%;height:100%;object-fit:cover}
+.thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:0 0 auto;background:var(--panel2);display:block}
+.thumb.sm{width:34px;height:34px}
+.thumb.empty{display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.withthumb{display:flex;gap:10px;align-items:flex-start;min-width:0}
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.35);vertical-align:-1px;margin-right:4px;flex:0 0 auto}
+.cor-chip{border:1px solid var(--line);background:none;border-radius:6px;padding:5px 9px;font-size:12.5px;cursor:pointer;color:var(--muted);min-height:32px;display:inline-flex;align-items:center;gap:4px}
+.cor-chip[aria-pressed="true"]{color:var(--fg);border-color:var(--yellow);background:var(--panel2)}
+.cores-mini{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
 .filrow{display:flex;gap:6px}.filrow input{flex:1 1 auto;min-width:0}.filrow .btn{flex:0 0 auto}
 #filInfo.on{color:var(--ok)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -212,6 +223,7 @@ td.n,th.n{text-align:right}
           <div class="f s3"><label for="vProd">Produto</label><select id="vProd" required></select></div>
           <div class="f s1" style="grid-column:span 1"><label for="vQtd">Qtd</label><input id="vQtd" type="number" min="1" step="1" value="1" required></div>
           <div class="f s2"><label for="vPreco">Preço unit. (R$)</label><input id="vPreco" type="number" min="0" step="0.01" required></div>
+          <div class="f s2"><label for="vCor">Cor</label><select id="vCor"><option value="">—</option></select></div>
           <div class="f s2"><label for="vData">Data</label><input id="vData" type="date" required></div>
           <div class="f s2"><label for="vCliente">Cliente (opcional)</label><input id="vCliente" type="text" maxlength="60"></div>
           <div class="f s2"><button class="btn c" type="submit">Registrar venda</button></div>
@@ -247,6 +259,16 @@ td.n,th.n{text-align:right}
         <div class="card-h"><h3><span id="calcTitle">Calculadora de preço</span></h3><button class="mini" id="calcReset" type="button">Limpar</button></div>
         <form class="grid" id="fCalc" autocomplete="off">
           <div class="f s6"><label for="pNome">Nome do produto</label><input id="pNome" type="text" maxlength="60" placeholder="Ex.: Presépio" required></div>
+          <div class="f s6"><span class="lbl-like" style="font-size:11.5px;color:var(--muted)">Foto do produto</span>
+            <div class="photo-row"><div class="ph" id="pFotoPrev">sem foto</div>
+              <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+                <label class="btn g" for="pFoto" style="display:inline-flex;align-items:center">Escolher foto</label>
+                <input id="pFoto" type="file" accept="image/*" hidden>
+                <button class="mini" type="button" id="pFotoDel" hidden style="padding-left:0">Remover foto</button>
+                <span class="hint">A foto é reduzida automaticamente para não pesar.</span></div></div></div>
+          <div class="f s6"><span style="font-size:11.5px;color:var(--muted)">Cores disponíveis</span>
+            <div class="chips" id="pCores"></div>
+            <div class="filrow" style="max-width:340px"><input id="pCorNova" type="text" maxlength="24" placeholder="Outra cor (ex.: Azul bebê)" aria-label="Nova cor"><button class="btn g" type="button" id="pCorAdd">Adicionar</button></div></div>
           <div class="f s3"><label for="pFil">Filamento (R$/kg)</label>
             <div class="filrow"><input id="pFil" type="number" min="0" step="0.01" value="100"><button class="btn g" type="button" id="fixFil">Fixar</button></div>
             <span class="hint" id="filInfo">Fixe o preço do kg para não precisar digitar de novo.</span></div>
@@ -307,7 +329,7 @@ td.n,th.n{text-align:right}
     <div class="card">
       <div class="card-h"><h3>Meus produtos</h3><span class="hint">O custo de cada produto é usado no lucro das vendas.</span></div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Produto</th><th class="n">Custo</th><th class="n">Preço</th><th class="n">Lucro/unid.</th><th class="n">Margem</th><th class="n">Vendidos</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Produto</th><th class="n">Custo</th><th class="n">Preço</th><th class="n">Lucro/unid.</th><th class="n">Margem</th><th class="n">Vendidos</th><th></th></tr></thead>
         <tbody id="tProd"></tbody>
       </table></div>
     </div>
@@ -379,12 +401,22 @@ function confirmBtn(btn,fn){
 
 /* ---------- vendas ---------- */
 $('#vData').value=today();$('#cVenc').value=today();
+const PALETA=[['Branco','#F5F2EA'],['Bege','#D8C3A0'],['Marrom','#6B4423'],['Preto','#1A1A1A'],['Verde','#2E8B3E'],['Vermelho','#C8102E'],['Dourado','#D4AF37'],['Azul','#2F6FD6'],['Rosa','#F28AB2'],['Cinza','#8A8A8A']];
+const corHex=n=>{const k=(n||'').toLowerCase();const f=PALETA.find(([a])=>k.startsWith(a.toLowerCase()));return f?f[1]:'#777'};
+const dot=n=>n?`<span class="cdot" style="background:${corHex(n)}"></span>`:'';
+const thumbHtml=(p,cls)=>p&&p.foto?`<img class="thumb ${cls}" src="${p.foto}" alt="">`:`<span class="thumb ${cls} empty" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></span>`;
+function fillCorSelect(sel,p,val){
+  const cs=(p&&p.cores)||[];
+  sel.innerHTML='<option value="">'+(cs.length?'Escolha…':'—')+'</option>'+cs.map(c=>`<option${c===val?' selected':''}>${esc(c)}</option>`).join('');
+  if(val&&!cs.includes(val))sel.insertAdjacentHTML('beforeend',`<option selected>${esc(val)}</option>`);
+}
 function fillProdSelect(){
   const sel=$('#vProd'),v=sel.value;
   sel.innerHTML=store.produtos.length?'<option value="">Escolha…</option>'+store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join(''):'<option value="">Cadastre um produto primeiro</option>';
   sel.value=v&&prodById(v)?v:'';
+  if(!sel.value)fillCorSelect($('#vCor'),null,'');
 }
-$('#vProd').addEventListener('change',()=>{const p=prodById($('#vProd').value);if(p)$('#vPreco').value=(p.preco||0).toFixed(2);vPreview()});
+$('#vProd').addEventListener('change',()=>{const p=prodById($('#vProd').value);if(p)$('#vPreco').value=(p.preco||0).toFixed(2);fillCorSelect($('#vCor'),p,'');vPreview()});
 ['#vQtd','#vPreco'].forEach(s=>$(s).addEventListener('input',vPreview));
 function vPreview(){
   const p=prodById($('#vProd').value),q=num($('#vQtd').value),pr=num($('#vPreco').value);
@@ -397,8 +429,8 @@ function vPreview(){
 $('#fVenda').addEventListener('submit',e=>{e.preventDefault();
   const p=prodById($('#vProd').value);if(!p){$('#vProd').focus();return}
   add('vendas',{produtoId:p.id,produto:p.nome,qtd:Math.max(1,Math.round(num($('#vQtd').value))),preco:num($('#vPreco').value),
-    custo:p.custo==null?null:p.custo,precoTabela:p.preco||0,data:$('#vData').value,cliente:$('#vCliente').value.trim()});
-  $('#vQtd').value=1;$('#vCliente').value='';$('#vPrev').textContent='';
+    custo:p.custo==null?null:p.custo,precoTabela:p.preco||0,data:$('#vData').value,cliente:$('#vCliente').value.trim(),cor:$('#vCor').value});
+  $('#vQtd').value=1;$('#vCliente').value='';$('#vPrev').textContent='';$('#vCor').value='';
 });
 
 /* ---------- contas ---------- */
@@ -454,12 +486,29 @@ function applyFil(force){
 $('#pFil').addEventListener('input',()=>{const f=filFixo();$('#fixFil').textContent=f&&num($('#pFil').value)===f?'Fixado':'Fixar'});
 $('#fixFil').onclick=()=>{const v=Math.round(num($('#pFil').value)*100)/100;if(!(v>0)){$('#pFil').focus();return}setDoc('config','geral',{filamentoKg:v})};
 $('#useSug').onclick=()=>{$('#pPreco').value=calc().sug.toFixed(2);drawCalc()};
-function resetCalc(){$('#fCalc').reset();editId=null;applyFil(true);$('#calcTitle').textContent='Calculadora de preço';$('#pSave').textContent='Salvar produto';$('#pCancel').hidden=true;drawCalc()}
+let fotoAtual=null,coresSel=[];
+function drawFoto(){$('#pFotoPrev').innerHTML=fotoAtual?`<img src="${fotoAtual}" alt="Foto do produto">`:'sem foto';$('#pFotoDel').hidden=!fotoAtual}
+function drawCores(){
+  const nomes=[...PALETA.map(x=>x[0]),...coresSel.filter(c=>!PALETA.some(x=>x[0]===c))];
+  $('#pCores').innerHTML=nomes.map(n=>`<button class="cor-chip" type="button" data-cor="${esc(n)}" aria-pressed="${coresSel.includes(n)}">${dot(n)}${esc(n)}</button>`).join('');
+}
+$('#pCores').addEventListener('click',e=>{const b=e.target.closest('[data-cor]');if(!b)return;const n=b.dataset.cor;
+  coresSel=coresSel.includes(n)?coresSel.filter(x=>x!==n):[...coresSel,n];drawCores()});
+const addCor=()=>{const n=$('#pCorNova').value.trim();if(!n)return;const cap=n.charAt(0).toUpperCase()+n.slice(1);if(!coresSel.includes(cap))coresSel.push(cap);$('#pCorNova').value='';drawCores()};
+$('#pCorAdd').onclick=addCor;$('#pCorNova').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCor()}});
+$('#pFotoDel').onclick=()=>{fotoAtual=null;drawFoto()};
+$('#pFoto').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{
+    const M=480,sc=Math.min(1,M/Math.max(img.width,img.height)),c=document.createElement('canvas');
+    c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    fotoAtual=c.toDataURL('image/jpeg',0.8);drawFoto()};
+    img.onerror=()=>{$('#pFotoPrev').textContent='formato não suportado'};img.src=rd.result};rd.readAsDataURL(f)});
+function resetCalc(){$('#fCalc').reset();editId=null;fotoAtual=null;coresSel=[];drawFoto();drawCores();applyFil(true);$('#calcTitle').textContent='Calculadora de preço';$('#pSave').textContent='Salvar produto';$('#pCancel').hidden=true;drawCalc()}
 $('#calcReset').onclick=resetCalc;$('#newProd').onclick=()=>{resetCalc();go('calc');$('#pNome').focus()};$('#pCancel').onclick=resetCalc;
 $('#fCalc').addEventListener('submit',e=>{e.preventDefault();
   const r=calc(),params={};C.forEach(k=>params[k]=num($('#'+k).value));
   const preco=$('#pPreco').value===''?Math.round(r.sug*100)/100:num($('#pPreco').value);
-  const obj={nome:$('#pNome').value.trim(),custo:Math.round(r.custo*100)/100,preco,taxa:params.pTaxa,params};
+  const obj={nome:$('#pNome').value.trim(),custo:Math.round(r.custo*100)/100,preco,taxa:params.pTaxa,params,foto:fotoAtual||null,cores:coresSel.slice()};
   if(editId)upd('produtos',editId,obj);else add('produtos',obj);
   resetCalc();go('produtos');
 });
@@ -468,6 +517,7 @@ function editProd(id){
   $('#pNome').value=p.nome;
   if(p.params)C.forEach(k=>{if(p.params[k]!=null&&!(k==='pFil'&&filFixo()))$('#'+k).value=p.params[k]});
   $('#pPreco').value=p.preco!=null?p.preco:'';
+  fotoAtual=p.foto||null;coresSel=(p.cores||[]).slice();drawFoto();drawCores();
   $('#calcTitle').textContent='Editando: '+p.nome;$('#pSave').textContent='Salvar alterações';$('#pCancel').hidden=false;
   go('calc');drawCalc();$('#pNome').focus();
 }
@@ -484,16 +534,17 @@ const pedTotal=o=>Math.max(0,(o.itens||[]).reduce((s,i)=>s+i.qtd*i.preco,0)+(o.f
 const aReceber=o=>o.pgto==='pago'?0:Math.max(0,pedTotal(o)-(o.pgto==='sinal'?(o.sinal||0):0));
 function itemRow(it){
   const opts=store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`<option value="${esc(p.id)}"${it&&it.produtoId===p.id?' selected':''}>${esc(p.nome)}</option>`).join('');
-  const d=document.createElement('div');d.className='item';
+  const d=document.createElement('div');d.className='item';const dlId=uid();
   d.innerHTML=`<div class="f"><label>Produto</label><select class="iProd" required><option value="">Escolha…</option>${opts}</select></div>
-    <div class="f"><label>Cor / detalhe</label><input class="iCor" type="text" maxlength="40" value="${esc(it?it.cor:'')}"></div>
+    <div class="f"><label>Cor</label><input class="iCor" type="text" maxlength="40" value="${esc(it?it.cor:'')}" list="dl-${dlId}" placeholder="Escolha ou digite"><datalist id="dl-${dlId}"></datalist></div>
     <div class="f"><label>Qtd</label><input class="iQtd" type="number" min="1" step="1" value="${it?it.qtd:1}" required></div>
     <div class="f"><label>Preço unit.</label><input class="iPreco" type="number" min="0" step="0.01" value="${it?it.preco:''}" required></div>
     <button class="x" type="button" aria-label="Remover item">×</button>`;
-  d.querySelector('.iProd').addEventListener('change',e=>{const p=prodById(e.target.value);if(p)d.querySelector('.iPreco').value=(p.preco||0).toFixed(2);oCalc()});
+  const fillDl=()=>{const p=prodById(d.querySelector('.iProd').value);d.querySelector('datalist').innerHTML=((p&&p.cores)||[]).map(c=>`<option value="${esc(c)}">`).join('')};
+  d.querySelector('.iProd').addEventListener('change',e=>{const p=prodById(e.target.value);if(p)d.querySelector('.iPreco').value=(p.preco||0).toFixed(2);fillDl();oCalc()});
   d.querySelectorAll('input').forEach(x=>x.addEventListener('input',oCalc));
   d.querySelector('.x').onclick=()=>{if($('#oItems').children.length>1){d.remove();oCalc()}};
-  $('#oItems').appendChild(d);
+  $('#oItems').appendChild(d);fillDl();
 }
 function readItems(){return [...$('#oItems').children].map(d=>{const p=prodById(d.querySelector('.iProd').value);
   return p?{produtoId:p.id,produto:p.nome,cor:d.querySelector('.iCor').value.trim(),qtd:Math.max(1,Math.round(num(d.querySelector('.iQtd').value))),preco:num(d.querySelector('.iPreco').value),custo:p.custo==null?null:p.custo,precoTabela:p.preco||0}:null}).filter(Boolean)}
@@ -523,7 +574,7 @@ async function syncVendas(o){
   await Promise.all(old.map(v=>del('vendas',v.id)));
   if(o.status!=='entregue')return;
   const dia=o.entregueEm||today();
-  await Promise.all((o.itens||[]).map(i=>add('vendas',{produtoId:i.produtoId,produto:i.produto+(i.cor?' ('+i.cor+')':''),qtd:i.qtd,preco:i.preco,custo:i.custo,precoTabela:i.precoTabela,data:dia,cliente:o.cliente,pedidoId:o.id})));
+  await Promise.all((o.itens||[]).map(i=>add('vendas',{produtoId:i.produtoId,produto:i.produto,cor:i.cor||'',qtd:i.qtd,preco:i.preco,custo:i.custo,precoTabela:i.precoTabela,data:dia,cliente:o.cliente,pedidoId:o.id})));
 }
 $('#fPed').addEventListener('submit',async e=>{e.preventDefault();
   const itens=readItems();if(!itens.length){$('#oItems .iProd').focus();return}
@@ -566,15 +617,15 @@ function renderPedidos(){
   const rec=list.reduce((s,o)=>s+aReceber(o),0),tot=list.reduce((s,o)=>s+pedTotal(o),0);
   $('#pSum').textContent=list.length?`${list.length} pedido${list.length>1?'s':''} · ${brl(tot)} no total`+(rec?` · ${brl(rec)} a receber`:''):'';
   $('#lPed').innerHTML=list.length?list.map(o=>{
-    const itens=(o.itens||[]).map(i=>`${i.qtd}× ${esc(i.produto)}${i.cor?' ('+esc(i.cor)+')':''}`).join(', ');
+    const itens=(o.itens||[]).map(i=>`${i.qtd}× ${esc(i.produto)}${i.cor?' '+dot(i.cor)+esc(i.cor):''}`).join(', ');
     const nx=NEXT[o.status];
     const pgCls=o.pgto==='pago'?'ok':o.pgto==='sinal'?'open':'late';
-    return `<div class="prow"><div style="min-width:0">
+    return `<div class="prow"><div class="withthumb">${thumbHtml(prodById((o.itens||[])[0]&&o.itens[0].produtoId),'')}<div style="min-width:0">
         <div class="t">${esc(o.cliente)} <span class="st ${o.status}">${stLabel(o.status)}</span></div>
         <div class="it">${itens}</div>
         <div class="m">${entregaTxt(o)} · ${o.tipoEntrega==='entrega'?'entrega':o.tipoEntrega==='correios'?'Correios':'retirada'}${o.contato?' · '+esc(o.contato):''}</div>
         ${o.obs?`<div class="m">${esc(o.obs)}</div>`:''}
-      </div>
+      </div></div>
       <div class="r"><span class="amt num">${brl(pedTotal(o))}</span>
         <button class="pill ${pgCls}" type="button" data-pg="${esc(o.id)}" aria-label="Mudar pagamento">${PG[o.pgto]||'Pendente'}${o.pgto==='sinal'&&o.sinal?' · '+brl(o.sinal):''}</button>
         <div class="acts">${nx?`<button class="next" type="button" data-st="${esc(o.id)}" data-to="${nx}">Marcar como ${stLabel(nx).toLowerCase()} →</button>`:''}
@@ -617,7 +668,7 @@ function render(){
     if(v.custo!=null){const real=(v.preco-v.custo)*v.qtd,pv=((v.precoTabela||v.preco)-v.custo)*v.qtd,d=real-pv;
       cmp=`<span class="cmp ${d>0.004?'up':d<-0.004?'down':'eq'}">lucro ${brl(real)}${Math.abs(d)>0.004?` · ${d>0?'+':''}${brl(d)} vs previsto`:' · igual ao previsto'}</span>`}
     else cmp='<span class="tag-miss">sem custo definido</span>';
-    return `<div class="row"><div><div class="t">${esc(v.produto)} × ${v.qtd}${v.pedidoId?'<span class="from-ped">pedido</span>':''}</div><div class="m">${fmtDate(v.data)}${v.cliente?' · '+esc(v.cliente):''} · ${brl(v.preco)} cada</div>${cmp}</div>
+    return `<div class="row"><div class="withthumb">${thumbHtml(prodById(v.produtoId),'sm')}<div style="min-width:0"><div class="t">${esc(v.produto)} × ${v.qtd}${v.cor?` <span class="m" style="font-weight:400">${dot(v.cor)}${esc(v.cor)}</span>`:''}${v.pedidoId?'<span class="from-ped">pedido</span>':''}</div><div class="m">${fmtDate(v.data)}${v.cliente?' · '+esc(v.cliente):''} · ${brl(v.preco)} cada</div>${cmp}</div></div>
       <div class="r"><span class="amt num">${brl(v.preco*v.qtd)}</span><button class="mini" data-del-v="${esc(v.id)}">Excluir</button></div></div>`}).join('')
     :`<div class="empty">${store.produtos.length?'Nenhuma venda neste mês. Escolha o produto acima e registre a primeira.':'Cadastre seus produtos na aba <b>Precificação</b> para começar a registrar vendas.'}</div>`;
 
@@ -643,10 +694,10 @@ function render(){
   const ps=store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
   $('#tProd').innerHTML=ps.length?ps.map(p=>{
     const has=p.custo!=null,l=has?(p.preco||0)*(1-(p.taxa||0)/100)-p.custo:null;
-    return `<tr><td><b>${esc(p.nome)}</b></td><td class="n num">${has?brl(p.custo):'<span class="tag-miss">definir</span>'}</td><td class="n num">${brl(p.preco)}</td>
+    return `<tr><td style="width:52px">${thumbHtml(p,'')}</td><td><b>${esc(p.nome)}</b>${(p.cores&&p.cores.length)?`<div class="cores-mini">${p.cores.map(c=>`<span title="${esc(c)}">${dot(c)}</span>`).join('')}</div>`:''}</td><td class="n num">${has?brl(p.custo):'<span class="tag-miss">definir</span>'}</td><td class="n num">${brl(p.preco)}</td>
       <td class="n num">${has?brl(l):'—'}</td><td class="n num">${has&&p.preco?Math.round(l/p.preco*100)+'%':'—'}</td><td class="n num">${sold[p.id]||0}</td>
       <td class="n" style="white-space:nowrap"><button class="mini" data-edit="${esc(p.id)}">Editar</button><button class="mini" data-del-p="${esc(p.id)}">Excluir</button></td></tr>`}).join('')
-    :'<tr><td colspan="7"><div class="empty">Nenhum produto ainda. Toque em <b>Novo produto</b> para calcular o preço e salvar.</div></td></tr>';
+    :'<tr><td colspan="8"><div class="empty">Nenhum produto ainda. Toque em <b>Novo produto</b> para calcular o preço e salvar.</div></td></tr>';
 }
 
 document.addEventListener('click',e=>{
@@ -664,7 +715,7 @@ document.addEventListener('click',e=>{
   else if(b.dataset.pedDel)confirmBtn(b,async()=>{const id=b.dataset.pedDel;await Promise.all(store.vendas.filter(v=>v.pedidoId===id).map(v=>del('vendas',v.id)));del('pedidos',id)});
 });
 
-drawCalc();render();
+drawFoto();drawCores();drawCalc();render();
 
 /* ---------- conexão (Supabase) ---------- */
 function supaDb(sb,uid){
