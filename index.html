@@ -250,17 +250,18 @@ a.wa{color:var(--cyan);text-decoration:none}a.wa:hover{text-decoration:underline
       </div>
 
       <div class="card">
-        <div class="card-h"><h3>Contas a pagar</h3><span class="hint" id="cCount"></span></div>
+        <div class="card-h"><h3 id="cTitle">Contas a pagar</h3><span class="hint" id="cCount"></span></div>
         <form class="grid" id="fConta" autocomplete="off">
           <div class="f s4"><label for="cDesc">Descrição</label><input id="cDesc" type="text" maxlength="80" placeholder="Ex.: Impressora 3D, filamentos" required></div>
           <div class="f s2"><label for="cCat">Categoria</label>
             <select id="cCat"><option>Equipamento</option><option>Filamento</option><option>Peças e manutenção</option><option>Energia</option><option>Embalagem</option><option>Frete</option><option>Marketing</option><option>Outros</option></select></div>
           <div class="f s2"><label for="cValor">Valor (R$)</label><input id="cValor" type="number" min="0" step="0.01" required></div>
-          <div class="f s2"><label for="cModo">O valor é</label><select id="cModo"><option value="total">Total da compra</option><option value="parcela">De cada parcela</option></select></div>
-          <div class="f s2"><label for="cParc">Parcelas</label><input id="cParc" type="number" min="1" max="60" step="1" value="1" required></div>
-          <div class="f s2"><label for="cVenc">1º vencimento</label><input id="cVenc" type="date" required></div>
-          <p class="hint s2" id="cPrev" style="margin:0;align-self:center"></p>
-          <div class="f s2"><button class="btn p" type="submit">Adicionar</button></div>
+          <div class="f s2 c-new"><label for="cModo">O valor é</label><select id="cModo"><option value="total">Total da compra</option><option value="parcela">De cada parcela</option></select></div>
+          <div class="f s2 c-new"><label for="cParc">Parcelas</label><input id="cParc" type="number" min="1" max="60" step="1" value="1" required></div>
+          <div class="f s2"><label for="cVenc" id="cVencLbl">1º vencimento</label><input id="cVenc" type="date" required></div>
+          <p class="hint s2 c-new" id="cPrev" style="margin:0;align-self:center"></p>
+          <label class="chk s4 c-edit" id="cAllWrap" hidden><input type="checkbox" id="cAll"> <span id="cAllTxt">Aplicar também às próximas parcelas em aberto</span></label>
+          <div class="f s2" style="flex-direction:row;gap:6px"><button class="btn p" type="submit" id="cSave" style="flex:1">Adicionar</button><button class="btn g c-edit" type="button" id="cCancel" hidden>Cancelar</button></div>
         </form>
         <div class="list" id="lContas"></div>
         <div id="parcBox" hidden><div class="sub-h">Parcelamentos em andamento</div><div class="list" id="lParc"></div></div>
@@ -488,7 +489,32 @@ function cPreview(){
   $('#cPrev').textContent=r.n===1?'Pagamento único':`${r.n}x de ${brl(r.vals[0])} · total ${brl(r.total)}`+(v?` · última em ${fmtDate(addMonths(v,r.n-1))}`:'');
 }
 ['#cValor','#cModo','#cParc','#cVenc'].forEach(x=>$(x).addEventListener('input',cPreview));
+let cEdit=null;
+function editConta(c,todas){
+  cEdit=c.id;$('#cTitle').textContent='Editar conta';$('#cSave').textContent='Salvar';
+  document.querySelectorAll('#fConta .c-new').forEach(x=>x.hidden=true);document.querySelectorAll('#fConta .c-edit').forEach(x=>x.hidden=false);
+  $('#cAllWrap').hidden=!c.grupo;$('#cAll').checked=!!todas;
+  $('#cAllTxt').textContent=`Aplicar também às próximas parcelas em aberto (${c.parcela}/${c.parcelas} em diante)`;
+  $('#cDesc').value=c.desc||'';$('#cCat').value=c.cat||'Outros';$('#cValor').value=c.valor;$('#cVenc').value=c.venc||'';
+  $('#cVencLbl').textContent=c.grupo?'Vencimento desta parcela':'Vencimento';
+  $('#fConta').scrollIntoView({block:'center'});$('#cDesc').focus();
+}
+function fimEditConta(){cEdit=null;$('#cTitle').textContent='Contas a pagar';$('#cSave').textContent='Adicionar';$('#cVencLbl').textContent='1º vencimento';
+  document.querySelectorAll('#fConta .c-new').forEach(x=>x.hidden=false);document.querySelectorAll('#fConta .c-edit').forEach(x=>x.hidden=true);
+  $('#cDesc').value='';$('#cValor').value='';$('#cParc').value=1;cPreview()}
+$('#cCancel').onclick=fimEditConta;
 $('#fConta').addEventListener('submit',async e=>{e.preventDefault();
+  if(cEdit){const c=store.contas.find(x=>x.id===cEdit);if(!c){fimEditConta();return}
+    const desc=$('#cDesc').value.trim(),cat=$('#cCat').value,valor=Math.round(num($('#cValor').value)*100)/100,venc=$('#cVenc').value;
+    const jobs=[upd('contas',c.id,{desc,cat,valor,venc})];
+    if(c.grupo&&$('#cAll').checked){
+      store.contas.filter(x=>x.grupo===c.grupo&&x.id!==c.id).forEach(x=>{
+        const patch={desc,cat};
+        if(x.parcela>c.parcela&&!x.pago){patch.valor=valor;patch.venc=addMonths(venc,x.parcela-c.parcela)}
+        jobs.push(upd('contas',x.id,patch))})}
+    await Promise.all(jobs);
+    if(c.grupo){const g=store.contas.filter(x=>x.grupo===c.grupo),tot=Math.round(g.reduce((s,x)=>s+x.valor,0)*100)/100;await Promise.all(g.map(x=>upd('contas',x.id,{totalCompra:tot})))}
+    fimEditConta();return}
   const r=parcelas(),desc=$('#cDesc').value.trim(),cat=$('#cCat').value,v0=$('#cVenc').value,grupo=r.n>1?uid():null;
   const jobs=r.vals.map((val,k)=>{const o={desc,valor:val,venc:addMonths(v0,k),cat,pago:false};
     if(grupo)Object.assign(o,{grupo,parcela:k+1,parcelas:r.n,totalCompra:r.total});return add('contas',o)});
@@ -812,7 +838,7 @@ function render(){
   $('#lContas').innerHTML=cont.length?cont.map(c=>{
     const late=!c.pago&&c.venc<hoje;
     return `<div class="row"><div><div class="t">${esc(c.desc)}${c.parcelas?`<span class="ptag num">${c.parcela}/${c.parcelas}</span>`:''}</div><div class="m">${esc(c.cat)} · vence ${fmtDate(c.venc)}</div></div>
-      <div class="r"><span class="amt num">${brl(c.valor)}</span><button class="pill ${c.pago?'ok':late?'late':'open'}" data-pay="${esc(c.id)}" aria-label="Marcar como ${c.pago?'em aberto':'paga'}">${c.pago?'Paga':late?'Atrasada':'Em aberto'}</button><button class="mini" data-del-c="${esc(c.id)}">Excluir</button></div></div>`}).join('')
+      <div class="r"><span class="amt num">${brl(c.valor)}</span><button class="pill ${c.pago?'ok':late?'late':'open'}" data-pay="${esc(c.id)}" aria-label="Marcar como ${c.pago?'em aberto':'paga'}">${c.pago?'Paga':late?'Atrasada':'Em aberto'}</button><button class="mini" data-edit-c="${esc(c.id)}">Editar</button><button class="mini" data-del-c="${esc(c.id)}">Excluir</button></div></div>`}).join('')
     :'<div class="empty">Nenhuma parcela vence neste mês. Adicione uma compra parcelada acima.</div>';
   const grupos={};store.contas.forEach(c=>{if(c.grupo)(grupos[c.grupo]=grupos[c.grupo]||[]).push(c)});
   const ativos=Object.values(grupos).map(g=>{g.sort((a,b)=>a.parcela-b.parcela);const pagas=g.filter(x=>x.pago).length;
@@ -822,7 +848,7 @@ function render(){
   $('#lParc').innerHTML=ativos.map(a=>`<div class="row"><div><div class="t">${esc(a.g[0].desc)}</div>
       <div class="m num">${a.pagas} de ${a.n} pagas · próxima ${fmtDate(a.prox.venc)} · total ${brl(a.g[0].totalCompra||a.g.reduce((s,x)=>s+x.valor,0))}</div>
       <div class="prog"><i style="width:${Math.round(a.pagas/a.n*100)}%"></i></div></div>
-    <div class="r"><span class="m">falta</span><span class="amt num">${brl(a.rest)}</span><button class="mini" data-del-g="${esc(a.g[0].grupo)}">Excluir</button></div></div>`).join('');
+    <div class="r"><span class="m">falta</span><span class="amt num">${brl(a.rest)}</span><button class="mini" data-edit-g="${esc(a.prox.id)}">Editar</button><button class="mini" data-del-g="${esc(a.g[0].grupo)}">Excluir</button></div></div>`).join('');
 
   renderPedidos();renderClientes();applyFil(false);agendarRecalc();
   const sold={};store.vendas.forEach(v=>sold[v.produtoId]=(sold[v.produtoId]||0)+v.qtd);
@@ -839,7 +865,9 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.pay){const c=store.contas.find(x=>x.id===b.dataset.pay);if(c)upd('contas',c.id,{pago:!c.pago})}
   else if(b.dataset.delV)confirmBtn(b,()=>del('vendas',b.dataset.delV));
-  else if(b.dataset.delC)confirmBtn(b,()=>del('contas',b.dataset.delC));
+  else if(b.dataset.editC){const c=store.contas.find(x=>x.id===b.dataset.editC);if(c)editConta(c,false)}
+  else if(b.dataset.editG){const c=store.contas.find(x=>x.id===b.dataset.editG);if(c)editConta(c,true)}
+  else if(b.dataset.delC)confirmBtn(b,()=>{if(cEdit===b.dataset.delC)fimEditConta();del('contas',b.dataset.delC)});
   else if(b.dataset.delG)confirmBtn(b,()=>store.contas.filter(c=>c.grupo===b.dataset.delG).forEach(c=>del('contas',c.id)));
   else if(b.dataset.delP)confirmBtn(b,()=>{if(editId===b.dataset.delP)resetCalc();del('produtos',b.dataset.delP)});
   else if(b.dataset.edit)editProd(b.dataset.edit);
