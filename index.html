@@ -123,6 +123,17 @@ td.n,th.n{text-align:right}
 .tag-miss{color:var(--warn);font-size:12px}
 #gate{position:fixed;inset:0;z-index:50;background:var(--night);display:flex;align-items:center;justify-content:center;padding:16px}
 .gbox{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}.filters .search{flex:1 1 200px;width:auto;min-width:0}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px 2px;border-top:1px solid var(--line)}
+.crow:first-child{border-top:0}
+.crow .t{font-weight:600}.crow .m{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.crow .stats{font-size:12.5px;margin-top:4px;display:flex;gap:4px 12px;flex-wrap:wrap}
+.crow .stats b{font-weight:600}
+.crow .acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--panel2);color:var(--yellow);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--display);flex:0 0 auto}
+.chk{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+a.wa{color:var(--cyan);text-decoration:none}a.wa:hover{text-decoration:underline}
+@media (max-width:620px){.crow{grid-template-columns:minmax(0,1fr)}.crow .acts{justify-content:flex-start}}
 .photo-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .ph{width:96px;height:96px;border-radius:8px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;overflow:hidden;flex:0 0 auto;background:var(--night)}
 .ph img{width:100%;height:100%;object-fit:cover}
@@ -188,6 +199,7 @@ td.n,th.n{text-align:right}
   </form>
 </div>
 <div class="app">
+<datalist id="dlClientes"></datalist>
   <aside>
     <div class="brand">
       <svg width="26" height="30" viewBox="-60 -66 120 132" aria-hidden="true"><polygon points="0,-60 52,-30 0,0 -52,-30" fill="#FFD23F"/><polygon points="-52,-30 0,0 0,60 -52,30" fill="#FF3E7F"/><polygon points="0,0 52,-30 52,30 0,60" fill="#7B3BFF"/><g stroke="#14112B" stroke-width="3"><line x1="-52" y1="-6" x2="0" y2="24"/><line x1="-52" y1="18" x2="0" y2="48"/><line x1="0" y1="24" x2="52" y2="-6"/><line x1="0" y1="48" x2="52" y2="18"/></g></svg>
@@ -196,6 +208,7 @@ td.n,th.n{text-align:right}
     <nav class="tabs" role="tablist" aria-orientation="vertical">
       <button role="tab" id="tab-painel" aria-selected="true" data-tab="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Início</button>
       <button role="tab" id="tab-pedidos" aria-selected="false" data-tab="pedidos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 11h6M9 15h4"/></svg>Pedidos</button>
+      <button role="tab" id="tab-clientes" aria-selected="false" data-tab="clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3 2.5 3.5 5.2"/></svg>Clientes</button>
       <button role="tab" id="tab-produtos" aria-selected="false" data-tab="produtos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Produtos</button>
       <button role="tab" id="tab-calc" aria-selected="false" data-tab="calc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg>Precificação</button>
     </nav>
@@ -229,7 +242,7 @@ td.n,th.n{text-align:right}
           <div class="f s2"><label for="vPreco">Preço unit. (R$)</label><input id="vPreco" type="number" min="0" step="0.01" required></div>
           <div class="f s2"><label for="vCor">Cor</label><select id="vCor"><option value="">—</option></select></div>
           <div class="f s2"><label for="vData">Data</label><input id="vData" type="date" required></div>
-          <div class="f s2"><label for="vCliente">Cliente (opcional)</label><input id="vCliente" type="text" maxlength="60"></div>
+          <div class="f s2"><label for="vCliente">Cliente (opcional)</label><input id="vCliente" type="text" maxlength="60" list="dlClientes"></div>
           <div class="f s2"><button class="btn c" type="submit">Registrar venda</button></div>
           <p class="hint s6" id="vPrev" style="margin:0" hidden></p>
         </form>
@@ -300,7 +313,8 @@ td.n,th.n{text-align:right}
     <div class="card" id="pedCard" hidden>
       <div class="card-h"><h3 id="pedTitle">Novo pedido</h3><button class="mini" type="button" id="pedClose">Fechar</button></div>
       <form class="grid" id="fPed" autocomplete="off">
-        <div class="f s3"><label for="oCli">Cliente</label><input id="oCli" type="text" maxlength="60" required></div>
+        <div class="f s3"><label for="oCli">Cliente</label><input id="oCli" type="text" maxlength="60" required list="dlClientes" placeholder="Escolha ou digite um nome">
+          <label class="chk" id="oNovoWrap" hidden><input type="checkbox" id="oNovoCli" checked> Cadastrar como novo cliente</label></div>
         <div class="f s3"><label for="oCont">WhatsApp ou Instagram</label><input id="oCont" type="text" maxlength="60" placeholder="(00) 00000-0000 ou @perfil"></div>
         <div class="s6 items" id="oItems"></div>
         <div class="s6"><button class="btn g" type="button" id="oAddItem">+ Adicionar item</button></div>
@@ -321,9 +335,31 @@ td.n,th.n{text-align:right}
 
     <div class="card">
       <div class="chips" id="pChips"></div>
-      <input class="search" id="pSearch" type="search" placeholder="Buscar por cliente ou produto" aria-label="Buscar pedidos">
+      <div class="filters"><select class="search" id="pCli" aria-label="Filtrar por cliente" style="flex:0 1 240px"></select>
+        <input class="search" id="pSearch" type="search" placeholder="Buscar por cliente ou produto" aria-label="Buscar pedidos"></div>
       <div class="hint" id="pSum"></div>
       <div class="list" id="lPed"></div>
+    </div>
+  </section>
+
+  <!-- CLIENTES -->
+  <section id="v-clientes" class="wrap" hidden>
+    <div class="bar"><h2>Clientes</h2><button class="btn y" type="button" id="newCli">Novo cliente</button></div>
+    <div class="card" id="cliCard" hidden>
+      <div class="card-h"><h3 id="cliTitle">Novo cliente</h3><button class="mini" type="button" id="cliClose">Fechar</button></div>
+      <form class="grid" id="fCli" autocomplete="off">
+        <div class="f s3"><label for="kNome">Nome</label><input id="kNome" type="text" maxlength="60" required></div>
+        <div class="f s3"><label for="kWhats">WhatsApp</label><input id="kWhats" type="tel" maxlength="20" placeholder="(00) 00000-0000"></div>
+        <div class="f s2"><label for="kInsta">Instagram</label><input id="kInsta" type="text" maxlength="40" placeholder="@perfil"></div>
+        <div class="f s4"><label for="kEnd">Endereço ou bairro</label><input id="kEnd" type="text" maxlength="120"></div>
+        <div class="f s6"><label for="kObs">Observações</label><input id="kObs" type="text" maxlength="200" placeholder="Ex.: prefere retirar, cliente de Natal"></div>
+        <div class="s6" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn y" type="submit" id="kSave">Salvar cliente</button><button class="btn g" type="button" id="kCancel">Cancelar</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <input class="search" id="cSearch" type="search" placeholder="Buscar cliente por nome, telefone ou Instagram" aria-label="Buscar clientes">
+      <div class="hint" id="cSum"></div>
+      <div class="list" id="lCli"></div>
     </div>
   </section>
 
@@ -351,8 +387,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 
 /* ---------- dados ---------- */
-const COLS=['produtos','vendas','contas','pedidos','config'];
-const store={produtos:[],vendas:[],contas:[],pedidos:[],config:[]};
+const COLS=['produtos','vendas','contas','pedidos','config','clientes'];
+const store={produtos:[],vendas:[],contas:[],pedidos:[],config:[],clientes:[]};
 let db=null, local=false;
 function loadLocal(){try{const raw=localStorage.getItem('atto-gestao');if(raw){const o=JSON.parse(raw);COLS.forEach(c=>store[c]=o[c]||[])}}catch(e){}}
 function saveLocal(){try{localStorage.setItem('atto-gestao',JSON.stringify(store))}catch(e){}}
@@ -384,7 +420,7 @@ const mKey=()=>cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
 const prodById=id=>store.produtos.find(p=>p.id===id);
 
 /* ---------- abas ---------- */
-const TABS=['painel','pedidos','produtos','calc'];
+const TABS=['painel','pedidos','clientes','produtos','calc'];
 function go(t){const b=$('#tab-'+t);if(b)b.click()}
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
@@ -533,7 +569,7 @@ const stLabel=k=>(ST.find(x=>x[0]===k)||['',k])[1];
 const NEXT={novo:'producao',producao:'pronto',pronto:'entregue'};
 const PG={pendente:'Pendente',sinal:'Sinal pago',pago:'Pago'};
 const ABERTOS=['novo','producao','pronto'];
-let pFilter='abertos', pEdit=null;
+let pFilter='abertos', pEdit=null, pCliF='';
 const pedTotal=o=>Math.max(0,(o.itens||[]).reduce((s,i)=>s+i.qtd*i.preco,0)+(o.frete||0)-(o.desconto||0));
 const recebimentos=o=>{ // valores já recebidos de um pedido, com a data
   if(o.status==='cancelado')return [];
@@ -566,13 +602,22 @@ function oCalc(){
   $('#oSinal').closest('.f').style.opacity=o.pgto==='sinal'?1:.45;
 }
 ['#oFrete','#oDesc','#oSinal','#oPg'].forEach(x=>$(x).addEventListener('input',oCalc));
-function openPed(o){
+const norm=t=>(t||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const cliByName=n=>store.clientes.find(c=>norm(c.nome)===norm(n));
+const cliById=id=>id&&store.clientes.find(c=>c.id===id);
+const nomePed=o=>{const c=cliById(o.clienteId);return c?c.nome:o.cliente};
+const doCliente=(o,c)=>o.clienteId?o.clienteId===c.id:norm(o.cliente)===norm(c.nome);
+const contatoCli=c=>[c.whats,c.insta].filter(Boolean).join(' · ');
+$('#oCli').addEventListener('input',()=>{const n=$('#oCli').value.trim(),c=cliByName(n);
+  $('#oNovoWrap').hidden=!n||!!c;if(c&&!$('#oCont').value)$('#oCont').value=contatoCli(c)});
+function openPed(o,cli){
   pEdit=o?o.id:null;$('#fPed').reset();$('#oItems').innerHTML='';
   $('#pedTitle').textContent=o?'Editar pedido de '+o.cliente:'Novo pedido';
-  if(o){$('#oCli').value=o.cliente||'';$('#oCont').value=o.contato||'';$('#oData').value=o.dataPedido||today();$('#oEnt').value=o.entrega||'';
+  if(o){$('#oCli').value=nomePed(o)||'';$('#oCont').value=o.contato||'';$('#oData').value=o.dataPedido||today();$('#oEnt').value=o.entrega||'';
     $('#oTipo').value=o.tipoEntrega||'retirada';$('#oFrete').value=o.frete||0;$('#oDesc').value=o.desconto||0;$('#oForma').value=o.formaPgto||'Pix';
     $('#oPg').value=o.pgto||'pendente';$('#oSinal').value=o.sinal||0;$('#oSt').value=o.status||'novo';$('#oObs').value=o.obs||'';(o.itens||[]).forEach(itemRow)}
-  else{$('#oData').value=today()}
+  else{$('#oData').value=today();if(cli){$('#oCli').value=cli.nome;$('#oCont').value=contatoCli(cli)}}
+  $('#oNovoWrap').hidden=true;$('#oNovoCli').checked=true;
   if(!$('#oItems').children.length)itemRow(null);
   $('#pedCard').hidden=false;oCalc();$('#oCli').focus();$('#pedCard').scrollIntoView({block:'start'});
 }
@@ -585,7 +630,7 @@ async function syncVendas(o){
   await Promise.all(old.map(v=>del('vendas',v.id)));
   if(o.status!=='entregue')return;
   const dia=o.entregueEm||today();
-  await Promise.all((o.itens||[]).map(i=>add('vendas',{produtoId:i.produtoId,produto:i.produto,cor:i.cor||'',qtd:i.qtd,preco:i.preco,custo:i.custo,precoTabela:i.precoTabela,data:dia,cliente:o.cliente,pedidoId:o.id})));
+  await Promise.all((o.itens||[]).map(i=>add('vendas',{produtoId:i.produtoId,produto:i.produto,cor:i.cor||'',qtd:i.qtd,preco:i.preco,custo:i.custo,precoTabela:i.precoTabela,data:dia,cliente:nomePed(o),pedidoId:o.id})));
 }
 $('#fPed').addEventListener('submit',async e=>{e.preventDefault();
   const itens=readItems();if(!itens.length){$('#oItems .iProd').focus();return}
@@ -594,6 +639,10 @@ $('#fPed').addEventListener('submit',async e=>{e.preventDefault();
     tipoEntrega:$('#oTipo').value,frete:num($('#oFrete').value),desconto:num($('#oDesc').value),formaPgto:$('#oForma').value,
     pgto:$('#oPg').value,sinal:num($('#oSinal').value),status:st,obs:$('#oObs').value.trim()};
   o.total=pedTotal(o);
+  {let c=cliByName(o.cliente);
+   if(!c&&o.cliente&&$('#oNovoCli').checked){const wa=o.contato.replace(/\D/g,'').length>=10?o.contato:'',ig=o.contato.startsWith('@')?o.contato:'';
+     const cid=await add('clientes',{nome:o.cliente,whats:wa,insta:ig,end:'',obs:''});if(cid)c={id:cid}}
+   o.clienteId=c?c.id:null}
   o.entregueEm=st==='entregue'?((prev&&prev.entregueEm)||today()):null;
   Object.assign(o,{pagoEm:prev?prev.pagoEm||null:null,sinalEm:prev?prev.sinalEm||null:null},pgDatas({pagoEm:prev&&prev.pagoEm,sinalEm:prev&&prev.sinalEm},o.pgto));
   if(pEdit){await upd('pedidos',pEdit,o);await syncVendas({...o,id:pEdit})}
@@ -607,6 +656,7 @@ async function setStatus(id,st){
   await upd('pedidos',id,patch);await syncVendas({...o,...patch});
 }
 $('#pSearch').addEventListener('input',()=>renderPedidos());
+$('#pCli').addEventListener('change',e=>{pCliF=e.target.value;renderPedidos()});
 function entregaTxt(o){
   if(!o.entrega)return '<span>sem data de entrega</span>';
   if(!ABERTOS.includes(o.status))return 'entrega '+fmtDate(o.entrega);
@@ -618,12 +668,18 @@ function entregaTxt(o){
 }
 function renderPedidos(){
   const all=store.pedidos;
-  const cnt=k=>k==='abertos'?all.filter(o=>ABERTOS.includes(o.status)).length:k==='todos'?all.length:all.filter(o=>o.status===k).length;
+  const cfx=cliById(pCliF),bx=cfx?all.filter(o=>doCliente(o,cfx)):all;
+  const cnt=k=>k==='abertos'?bx.filter(o=>ABERTOS.includes(o.status)).length:k==='todos'?bx.length:bx.filter(o=>o.status===k).length;
   const chips=[['abertos','Em aberto'],...ST.slice(0,4),['cancelado','Cancelados'],['todos','Todos']];
   $('#pChips').innerHTML=chips.map(([k,l])=>`<button class="chip" type="button" data-pf="${k}" aria-pressed="${pFilter===k}">${l} <b class="num">${cnt(k)}</b></button>`).join('');
   const q=$('#pSearch').value.trim().toLowerCase();
-  let list=all.filter(o=>pFilter==='todos'?true:pFilter==='abertos'?ABERTOS.includes(o.status):o.status===pFilter);
-  if(q)list=list.filter(o=>(o.cliente||'').toLowerCase().includes(q)||(o.itens||[]).some(i=>(i.produto||'').toLowerCase().includes(q))||(o.contato||'').toLowerCase().includes(q));
+  {const sel=$('#pCli'),cs=store.clientes.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+   if(pCliF&&!cliById(pCliF))pCliF='';
+   sel.innerHTML='<option value="">Todos os clientes</option>'+cs.map(c=>`<option value="${esc(c.id)}"${c.id===pCliF?' selected':''}>${esc(c.nome)}</option>`).join('')}
+  const cf=cliById(pCliF);
+  const base=cf?all.filter(o=>doCliente(o,cf)):all;
+  let list=base.filter(o=>pFilter==='todos'?true:pFilter==='abertos'?ABERTOS.includes(o.status):o.status===pFilter);
+  if(q)list=list.filter(o=>(nomePed(o)||'').toLowerCase().includes(q)||(o.itens||[]).some(i=>(i.produto||'').toLowerCase().includes(q))||(o.contato||'').toLowerCase().includes(q));
   const openSort=(a,b)=>(a.entrega||'9999').localeCompare(b.entrega||'9999');
   list.sort(ABERTOS.includes(list[0]&&list[0].status)&&pFilter!=='todos'?openSort:(a,b)=>(b.dataPedido||'').localeCompare(a.dataPedido||''));
   const rec=list.reduce((s,o)=>s+aReceber(o),0),tot=list.reduce((s,o)=>s+pedTotal(o),0);
@@ -633,7 +689,7 @@ function renderPedidos(){
     const nx=NEXT[o.status];
     const pgCls=o.pgto==='pago'?'ok':o.pgto==='sinal'?'open':'late';
     return `<div class="prow"><div class="withthumb">${thumbHtml(prodById((o.itens||[])[0]&&o.itens[0].produtoId),'')}<div style="min-width:0">
-        <div class="t">${esc(o.cliente)} <span class="st ${o.status}">${stLabel(o.status)}</span></div>
+        <div class="t">${esc(nomePed(o))} <span class="st ${o.status}">${stLabel(o.status)}</span></div>
         <div class="it">${itens}</div>
         <div class="m">${entregaTxt(o)} · ${o.tipoEntrega==='entrega'?'entrega':o.tipoEntrega==='correios'?'Correios':'retirada'}${o.contato?' · '+esc(o.contato):''}</div>
         ${o.obs?`<div class="m">${esc(o.obs)}</div>`:''}
@@ -655,6 +711,40 @@ function renderPedidos(){
     :'<span>Nenhum pedido em aberto.</span><span style="margin-left:auto">Registrar pedido →</span>';
 }
 $('#pStrip').onclick=()=>go('pedidos');
+
+/* ---------- clientes ---------- */
+let kEdit=null;
+function openCli(c){kEdit=c?c.id:null;$('#fCli').reset();$('#cliTitle').textContent=c?'Editar '+c.nome:'Novo cliente';
+  if(c){$('#kNome').value=c.nome||'';$('#kWhats').value=c.whats||'';$('#kInsta').value=c.insta||'';$('#kEnd').value=c.end||'';$('#kObs').value=c.obs||''}
+  $('#cliCard').hidden=false;$('#kNome').focus();$('#cliCard').scrollIntoView({block:'start'})}
+const closeCli=()=>{$('#cliCard').hidden=true;kEdit=null};
+$('#newCli').onclick=()=>openCli(null);$('#cliClose').onclick=closeCli;$('#kCancel').onclick=closeCli;
+$('#fCli').addEventListener('submit',async e=>{e.preventDefault();
+  const o={nome:$('#kNome').value.trim(),whats:$('#kWhats').value.trim(),insta:$('#kInsta').value.trim(),end:$('#kEnd').value.trim(),obs:$('#kObs').value.trim()};
+  if(o.insta&&!o.insta.startsWith('@'))o.insta='@'+o.insta;
+  const dup=cliByName(o.nome);if(dup&&dup.id!==kEdit){$('#kNome').setCustomValidity('Já existe um cliente com esse nome.');$('#kNome').reportValidity();$('#kNome').setCustomValidity('');return}
+  if(kEdit)await upd('clientes',kEdit,o);else await add('clientes',o);closeCli()});
+$('#cSearch').addEventListener('input',()=>renderClientes());
+const waLink=t=>{const d=(t||'').replace(/\D/g,'');return d.length>=10?'https://wa.me/'+(d.length<=11?'55'+d:d):''};
+function renderClientes(){
+  $('#dlClientes').innerHTML=store.clientes.map(c=>`<option value="${esc(c.nome)}">`).join('');
+  const q=norm($('#cSearch').value);
+  const cs=store.clientes.filter(c=>!q||norm(c.nome).includes(q)||norm(c.whats).includes(q)||norm(c.insta).includes(q)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  $('#cSum').textContent=store.clientes.length?`${store.clientes.length} cliente${store.clientes.length>1?'s':''} cadastrado${store.clientes.length>1?'s':''}`:'';
+  $('#lCli').innerHTML=cs.length?cs.map(c=>{
+    const ps=store.pedidos.filter(o=>o.status!=='cancelado'&&doCliente(o,c));
+    const tot=ps.reduce((s,o)=>s+pedTotal(o),0),rec=ps.reduce((s,o)=>s+aReceber(o),0),abertos=ps.filter(o=>ABERTOS.includes(o.status)).length;
+    const ult=ps.map(o=>o.dataPedido||'').sort().pop();const wa=waLink(c.whats);
+    return `<div class="crow"><div class="withthumb"><span class="avatar">${esc((c.nome||'?').charAt(0).toUpperCase())}</span><div style="min-width:0">
+      <div class="t">${esc(c.nome)}</div>
+      <div class="m">${c.whats?(wa?`<a class="wa" href="${wa}" target="_blank" rel="noopener">${esc(c.whats)}</a>`:esc(c.whats)):''}${c.whats&&c.insta?' · ':''}${esc(c.insta||'')}${c.end?' · '+esc(c.end):''}</div>
+      ${c.obs?`<div class="m">${esc(c.obs)}</div>`:''}
+      <div class="stats num"><span><b>${ps.length}</b> pedido${ps.length===1?'':'s'}</span>${abertos?`<span>${abertos} em aberto</span>`:''}<span><b>${brl(tot)}</b> em compras</span>${rec?`<span class="soon-t">${brl(rec)} a receber</span>`:''}${ult?`<span>último em ${fmtDate(ult)}</span>`:''}</div>
+    </div></div>
+    <div class="acts"><button class="next" type="button" data-cli-ped="${esc(c.id)}">Ver pedidos</button><button class="mini" type="button" data-cli-new="${esc(c.id)}">Novo pedido</button>
+      <button class="mini" type="button" data-cli-edit="${esc(c.id)}">Editar</button><button class="mini" type="button" data-cli-del="${esc(c.id)}">Excluir</button></div></div>`}).join('')
+    :`<div class="empty">${store.clientes.length?'Nenhum cliente encontrado.':'Nenhum cliente ainda. Toque em <b>Novo cliente</b> ou cadastre direto ao criar um pedido.'}</div>`;
+}
 
 /* ---------- render ---------- */
 function render(){
@@ -707,7 +797,7 @@ function render(){
       <div class="prog"><i style="width:${Math.round(a.pagas/a.n*100)}%"></i></div></div>
     <div class="r"><span class="m">falta</span><span class="amt num">${brl(a.rest)}</span><button class="mini" data-del-g="${esc(a.g[0].grupo)}">Excluir</button></div></div>`).join('');
 
-  renderPedidos();applyFil(false);
+  renderPedidos();renderClientes();applyFil(false);
   const sold={};store.vendas.forEach(v=>sold[v.produtoId]=(sold[v.produtoId]||0)+v.qtd);
   const ps=store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
   $('#tProd').innerHTML=ps.length?ps.map(p=>{
@@ -730,6 +820,10 @@ document.addEventListener('click',e=>{
   else if(b.dataset.st)setStatus(b.dataset.st,b.dataset.to);
   else if(b.dataset.pg){const o=store.pedidos.find(x=>x.id===b.dataset.pg);if(o){const seq=['pendente','sinal','pago'];let nv=seq[(seq.indexOf(o.pgto||'pendente')+1)%3];upd('pedidos',o.id,{pgto:nv,...pgDatas(o,nv)})}}
   else if(b.dataset.pedEdit){const o=store.pedidos.find(x=>x.id===b.dataset.pedEdit);if(o)openPed(o)}
+  else if(b.dataset.cliPed){pCliF=b.dataset.cliPed;pFilter='todos';$('#pSearch').value='';go('pedidos');renderPedidos()}
+  else if(b.dataset.cliNew){const c=cliById(b.dataset.cliNew);go('pedidos');if(!store.produtos.length){go('calc');return}openPed(null,c)}
+  else if(b.dataset.cliEdit){const c=cliById(b.dataset.cliEdit);if(c)openCli(c)}
+  else if(b.dataset.cliDel)confirmBtn(b,()=>del('clientes',b.dataset.cliDel));
   else if(b.dataset.pedDel)confirmBtn(b,async()=>{const id=b.dataset.pedDel;await Promise.all(store.vendas.filter(v=>v.pedidoId===id).map(v=>del('vendas',v.id)));del('pedidos',id)});
 });
 
