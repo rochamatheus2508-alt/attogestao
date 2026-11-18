@@ -367,7 +367,7 @@ a.wa{color:var(--cyan);text-decoration:none}a.wa:hover{text-decoration:underline
   <section id="v-produtos" class="wrap" hidden>
     <div class="bar"><h2>Produtos</h2><button class="btn y" type="button" id="newProd">Novo produto</button></div>
     <div class="card">
-      <div class="card-h"><h3>Meus produtos</h3><span class="hint">O custo de cada produto é usado no lucro das vendas.</span></div>
+      <div class="card-h"><h3>Meus produtos</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="hint" id="recalcInfo">O custo de cada produto é usado no lucro das vendas.</span><button class="btn g" type="button" id="recalcBtn">Recalcular custos</button></div></div>
       <div class="tbl-wrap"><table>
         <thead><tr><th></th><th>Produto</th><th class="n">Custo</th><th class="n">Preço</th><th class="n">Lucro/unid.</th><th class="n">Margem</th><th class="n">Vendidos</th><th></th></tr></thead>
         <tbody id="tProd"></tbody>
@@ -524,7 +524,34 @@ function applyFil(force){
   if(f&&(force||f!==filApplied)&&document.activeElement!==$('#pFil')){$('#pFil').value=f;filApplied=f;drawCalc();$('#fixFil').textContent='Fixado'}
 }
 $('#pFil').addEventListener('input',()=>{const f=filFixo();$('#fixFil').textContent=f&&num($('#pFil').value)===f?'Fixado':'Fixar'});
-$('#fixFil').onclick=()=>{const v=Math.round(num($('#pFil').value)*100)/100;if(!(v>0)){$('#pFil').focus();return}setDoc('config','geral',{filamentoKg:v})};
+/* recalcula o custo de todos os produtos com o preço fixo do filamento e leva o novo custo às vendas e pedidos */
+const custoDe=(pr,fil)=>{const mat=fil*num(pr.pPeso)/1000;return Math.round((mat+mat*num(pr.pFalha)/100+num(pr.pExtra))*100)/100};
+let recalcando=false;
+async function recalcTudo(filArg,silencioso){
+  const f=filArg||filFixo();const info=$('#recalcInfo');
+  if(!f){if(!silencioso){info.textContent='Fixe o preço do kg do filamento na Precificação primeiro.';info.className='tag-miss'}return}
+  if(recalcando)return;recalcando=true;
+  const novo={};let np=0,nv=0,no=0,semPeso=0;const jobs=[];
+  store.produtos.forEach(p=>{
+    if(!p.params||!(num(p.params.pPeso)>0)){semPeso++;return}
+    const {pHoras,pWatts,pKwh,pDesg,...resto}=p.params;const params={...resto,pFil:f};
+    const c=custoDe(params,f);novo[p.id]=c;
+    if(c!==p.custo||p.params.pFil!==f||'pHoras' in p.params){np++;jobs.push(upd('produtos',p.id,{custo:c,params}))}});
+  store.vendas.forEach(v=>{if(v.produtoId in novo&&v.custo!==novo[v.produtoId]){nv++;jobs.push(upd('vendas',v.id,{custo:novo[v.produtoId]}))}});
+  store.pedidos.forEach(o=>{let mud=false;const itens=(o.itens||[]).map(i=>{if(i.produtoId in novo&&i.custo!==novo[i.produtoId]){mud=true;return {...i,custo:novo[i.produtoId]}}return i});
+    if(mud){no++;jobs.push(upd('pedidos',o.id,{itens}))}});
+  await Promise.all(jobs);recalcando=false;
+  if(silencioso&&!np&&!nv&&!no)return;
+  info.className='hint';info.style.color='var(--ok)';
+  info.textContent=(np||nv||no)?`Atualizado com ${brl(f)}/kg: ${np} produto${np===1?'':'s'}, ${nv} venda${nv===1?'':'s'} e ${no} pedido${no===1?'':'s'}.`:'Tudo já estava com o preço atual do filamento.';
+  if(semPeso)info.textContent+=` ${semPeso} produto${semPeso===1?'':'s'} sem peso: toque em Editar para preencher.`;
+}
+$('#recalcBtn').onclick=()=>recalcTudo(null,false);
+$('#fixFil').onclick=async()=>{const v=Math.round(num($('#pFil').value)*100)/100;if(!(v>0)){$('#pFil').focus();return}
+  await setDoc('config','geral',{filamentoKg:v});recalcTudo(v,false)};
+/* ajuste automático uma vez depois que os dados carregam */
+let autoRecalc=null,autoFeito=false;
+function agendarRecalc(){if(autoFeito||!filFixo())return;clearTimeout(autoRecalc);autoRecalc=setTimeout(()=>{autoFeito=true;recalcTudo(null,true)},2500)}
 $('#useSug').onclick=()=>{$('#pPreco').value=calc().sug.toFixed(2);drawCalc()};
 let fotoAtual=null,coresSel=[];
 function drawFoto(){$('#pFotoPrev').innerHTML=fotoAtual?`<img src="${fotoAtual}" alt="Foto do produto">`:'sem foto';$('#pFotoDel').hidden=!fotoAtual}
@@ -797,7 +824,7 @@ function render(){
       <div class="prog"><i style="width:${Math.round(a.pagas/a.n*100)}%"></i></div></div>
     <div class="r"><span class="m">falta</span><span class="amt num">${brl(a.rest)}</span><button class="mini" data-del-g="${esc(a.g[0].grupo)}">Excluir</button></div></div>`).join('');
 
-  renderPedidos();renderClientes();applyFil(false);
+  renderPedidos();renderClientes();applyFil(false);agendarRecalc();
   const sold={};store.vendas.forEach(v=>sold[v.produtoId]=(sold[v.produtoId]||0)+v.qtd);
   const ps=store.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
   $('#tProd').innerHTML=ps.length?ps.map(p=>{
